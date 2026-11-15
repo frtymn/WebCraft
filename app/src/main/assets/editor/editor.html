@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>WebCraft Editor</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#0f1114; }
+  #editor { height:100%; font-size:14px; }
+  .cm-editor { height:100%; }
+  .cm-editor.cm-focused { outline:none; }
+  .cm-gutters { user-select:none; -webkit-user-select:none; }
+  .cm-scroller { font-family:'JetBrains Mono','Cascadia Mono','Fira Code',monospace; }
+  .cm-content { line-height:1.5; caret-color:#7aa2ff; padding-bottom:40vh; }
+  .cm-searchPanel input, .cm-searchPanel button { font-size:14px; }
+  .cm-panel.cm-search { background:#1a1e24; color:#e8e8e8; padding:6px; border-radius:6px; }
+  .cm-panel.cm-search label { color:#cfcfcf; }
+  .cm-panel.cm-search button { background:#2b3138; color:#e8e8e8; border:none; padding:5px 10px; margin:2px; border-radius:4px; }
+  .cm-tooltip { font-size:13px; }
+  .cm-diagnostic { padding:3px 6px 3px 6px; border-left:3px solid; font-size:12px; font-family:sans-serif; }
+</style>
+</head>
+<body>
+<div id="editor"></div>
+<script src="editor.js"></script>
+</body>
+</html>
