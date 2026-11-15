@@ -57,6 +57,7 @@ fun EditorScreen(nav: NavController, projectId: Long) {
 
     var webView by remember { mutableStateOf<WebView?>(null) }
     var editorReady by remember { mutableStateOf(false) }
+    var renderCrashes by remember { mutableStateOf(0) }
     var showFileTree by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var showNewFile by remember { mutableStateOf(false) }
@@ -129,6 +130,24 @@ fun EditorScreen(nav: NavController, projectId: Long) {
                     )
                 }
                 Box(Modifier.weight(1f).fillMaxWidth()) {
+                    if (renderCrashes > 3) {
+                        // The WebView renderer keeps dying on this device —
+                        // stop recreating it and tell the user instead of
+                        // crashing the app or looping forever.
+                        Column(
+                            Modifier.fillMaxSize().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "The code editor could not start on this device.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            TextButton(onClick = {
+                                renderCrashes = 0
+                            }) { Text("Try again") }
+                        }
+                    } else androidx.compose.runtime.key(renderCrashes) {
                     AndroidView(
                     factory = { ctx ->
                         WebView(ctx).apply {
@@ -185,7 +204,24 @@ fun EditorScreen(nav: NavController, projectId: Long) {
                                     }
                                 }
                             ), "AndroidEditor")
-                            webViewClient = WebViewClient()
+                            webViewClient = object : WebViewClient() {
+                                // If the WebView renderer process dies (OOM
+                                // kill, GPU driver crash, …), destroy the dead
+                                // WebView and recreate it. Returning true is
+                                // REQUIRED: otherwise WebView kills the whole
+                                // app process — which was the cause of
+                                // repeated full-app crashes on real devices.
+                                override fun onRenderProcessGone(
+                                    view: WebView,
+                                    detail: android.webkit.RenderProcessGoneDetail
+                                ): Boolean {
+                                    editorReady = false
+                                    webView = null
+                                    renderCrashes++
+                                    try { view.destroy() } catch (_: Exception) {}
+                                    return true
+                                }
+                            }
                             webChromeClient = WebChromeClient()
                             // Load the bundled editor HTML from assets
                             loadUrl("file:///android_asset/editor/editor.html")
@@ -194,8 +230,9 @@ fun EditorScreen(nav: NavController, projectId: Long) {
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-                }
+                } // end key(renderCrashes)
             }
+        }
         }
     }
 
@@ -337,7 +374,9 @@ private fun EditorTopBar(
         title = {
             Column {
                 Text(projectName, style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(
                     buildString {
                         append(fileName)
@@ -345,7 +384,9 @@ private fun EditorTopBar(
                         if (isSaving) append("  saving…")
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
         },

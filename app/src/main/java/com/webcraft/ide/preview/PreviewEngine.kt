@@ -1,6 +1,7 @@
 package com.webcraft.ide.preview
 
 import android.content.Context
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -22,7 +23,10 @@ import java.io.ByteArrayInputStream
  *  - No JavaScript bridge is exposed to previewed pages.
  *  - Console and errors are piped to an in-app console only.
  */
-class PreviewEngine(private val context: Context) {
+class PreviewEngine(
+    private val context: Context,
+    private val onRendererGone: () -> Unit = {}
+) {
 
     private val _consoleLines = MutableStateFlow<List<ConsoleLine>>(emptyList())
     val consoleLines: StateFlow<List<ConsoleLine>> = _consoleLines
@@ -117,6 +121,22 @@ class PreviewEngine(private val context: Context) {
     // ── WebViewClient ──────────────────────────────────────────────
 
     inner class PreviewClient : WebViewClient() {
+        /**
+         * If the WebView renderer process dies (OOM kill, GPU driver crash,
+         * system pressure), destroy the dead WebView and report it.
+         * Returning true is REQUIRED: otherwise the WebView stack kills the
+         * whole app process, which caused repeated full-app crashes.
+         */
+        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+            current = null
+            _runtimeErrors.value = _runtimeErrors.value + RuntimeError(
+                "The preview renderer stopped and was restarted.", "", 0
+            )
+            try { view.destroy() } catch (_: Exception) {}
+            onRendererGone()
+            return true
+        }
+
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
             val url = request.url
             return when (url.scheme) {

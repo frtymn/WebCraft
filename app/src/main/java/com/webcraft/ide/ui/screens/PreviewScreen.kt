@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +39,10 @@ fun PreviewScreen(nav: NavController, projectId: Long) {
     val state by vm.ui.collectAsState()
     val scope = rememberCoroutineScope()
 
-    val engine = remember { com.webcraft.ide.preview.PreviewEngine(nav.context) }
+    var previewCrashes by remember { mutableStateOf(0) }
+    val engine = remember {
+        com.webcraft.ide.preview.PreviewEngine(nav.context) { previewCrashes++ }
+    }
     var webView by remember { mutableStateOf<WebView?>(null) }
     var autoRefresh by remember { mutableStateOf(true) }
     var viewport by remember { mutableStateOf<ViewportPreset>(ViewportPreset.Mobile) }
@@ -69,7 +73,9 @@ fun PreviewScreen(nav: NavController, projectId: Long) {
                     title = {
                         Text(
                             "Preview — ${state.project?.name ?: ""}",
-                            fontWeight = FontWeight.SemiBold, fontSize = 16.sp
+                            fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     },
                     navigationIcon = {
@@ -99,6 +105,19 @@ fun PreviewScreen(nav: NavController, projectId: Long) {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(if (fullscreen) PaddingValues(0.dp) else padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
+                if (previewCrashes > 3) {
+                    Column(
+                        Modifier.fillMaxSize().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            "The preview could not start on this device.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        TextButton(onClick = { previewCrashes = 0 }) { Text("Try again") }
+                    }
+                } else androidx.compose.runtime.key(previewCrashes) {
                 AndroidView(
                     factory = { ctx ->
                         val wv = engine.createWebView().apply {
@@ -116,6 +135,7 @@ fun PreviewScreen(nav: NavController, projectId: Long) {
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+                } // end key(previewCrashes)
             }
 
             if (showConsole) {

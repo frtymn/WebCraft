@@ -21,6 +21,10 @@ import kotlinx.coroutines.withContext
 class AppViewModelFactory(val app: Application) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        // Defensive: guarantee singletons exist even if this factory is used
+        // from a context where Application.onCreate has not run yet.
+        // init() is idempotent and cheap when already initialized.
+        ServiceLocator.init(app)
         return when (modelClass) {
             ProjectsViewModel::class.java -> ProjectsViewModel(app) as T
             EditorViewModel::class.java -> EditorViewModel(app) as T
@@ -32,9 +36,10 @@ class AppViewModelFactory(val app: Application) : ViewModelProvider.Factory {
 
 /** Shared container for singletons that live as long as the app. */
 object ServiceLocator {
-    lateinit var repository: ProjectRepository
-    lateinit var gitManager: GitManager
+    @Volatile lateinit var repository: ProjectRepository
+    @Volatile lateinit var gitManager: GitManager
 
+    @Synchronized
     fun init(app: Application) {
         if (::repository.isInitialized) return
         val db = WebCraftDatabase.get(app)
